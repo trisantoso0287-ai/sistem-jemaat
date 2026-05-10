@@ -5,7 +5,6 @@ import {
   ChevronUp, ChevronDown, UploadCloud, Printer, CheckCircle, XCircle, FileText, MapPin, Save, Clock, FileSpreadsheet, Download
 } from 'lucide-react';
 
-// Memperbarui import untuk memastikan instalasi modul berjalan ulang tanpa cache error
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { 
@@ -13,22 +12,20 @@ import {
 } from 'firebase/firestore';
 
 // --- FIREBASE INITIALIZATION ---
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
-};
+// Konfigurasi ini disesuaikan agar bisa berjalan dengan baik di lingkungan pratinjau (Canvas).
+// Jika Anda menyalinnya ke VS Code untuk Vercel, pastikan untuk menggunakan konfigurasi Vite Anda.
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Jalur database produksi
-const getCollectionPath = (colName) => `${colName}`;
-const getDocRef = (colName, docId) => doc(db, colName, docId);
+// Pengaturan Jalur Database
+const isCanvas = typeof __app_id !== 'undefined';
+const appId = isCanvas ? __app_id : 'default-app-id';
+
+const getCollectionPath = (colName) => isCanvas ? `artifacts/${appId}/public/data/${colName}` : colName;
+const getDocRef = (colName, docId) => isCanvas ? doc(db, 'artifacts', appId, 'public', 'data', colName, docId) : doc(db, colName, docId);
 
 // --- HELPER UNTUK FORM DATA JEMAAT ---
 const toCamelCase = (str) => {
@@ -302,10 +299,16 @@ export default function App() {
   useEffect(() => {
     const initApp = async () => {
       try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-        else await signInAnonymously(auth);
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
         setIsFirebaseReady(true);
-      } catch (error) { console.error("Auth error:", error); alert("Gagal terhubung ke database."); }
+      } catch (error) { 
+        console.error("Auth error:", error); 
+        alert("Gagal terhubung ke database."); 
+      }
     };
     initApp();
   }, []);
@@ -406,6 +409,14 @@ export default function App() {
   };
 
   const DashboardView = () => {
+    // Memindahkan mesin waktu HANYA ke dalam Dashboard agar tidak merefresh Login
+    const [now, setNow] = useState(new Date());
+    
+    useEffect(() => {
+      const timer = setInterval(() => setNow(new Date()), 1000);
+      return () => clearInterval(timer);
+    }, []);
+
     // Group 1 Calculations
     const totalKK = dataJemaat.reduce((acc, curr) => acc + (Number(curr.jumlahKK) || 0), 0);
     const jiwaL = dataJemaat.reduce((acc, curr) => acc + (Number(curr.jiwaL) || 0), 0);
@@ -434,9 +445,18 @@ export default function App() {
 
     return (
       <div className="space-y-8">
-        <div className="mb-6">
-           <h2 className="text-3xl font-bold text-indigo-900">Shalom, {currentUser.name}!</h2>
-           <p className="text-slate-500 text-lg mt-1">Selamat datang di Infografis & Ringkasan Realtime</p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+             <h2 className="text-3xl font-bold text-indigo-900">Shalom, {currentUser.name}!</h2>
+             <p className="text-slate-500 text-lg mt-1">Selamat datang di Infografis & Ringkasan Realtime</p>
+          </div>
+          <div className="bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3 w-fit">
+             <Clock className="text-indigo-500" size={24} />
+             <div>
+               <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+               <p className="text-xl font-bold text-slate-800 leading-none mt-1">{now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</p>
+             </div>
+          </div>
         </div>
         
         {/* Grup 1: Populasi */}
@@ -1235,37 +1255,42 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Mobile Topbar & Pills */}
-      <div className="md:hidden flex flex-col w-full z-40 relative">
-        <div className="bg-white border-b border-slate-200 p-4 flex justify-between items-center">
-           <div className="flex items-center gap-3 text-indigo-600">
-             <img src="https://i.imgur.com/XV3hpOH.png" alt="Logo" className="w-8 h-8 object-contain" />
-             <div>
-                <h1 className="font-bold text-[15px] leading-tight">Sistem Informasi Jemaat</h1>
-                <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Klasis Mollo Barat</p>
+      {/* Wrapper untuk konten utama agar tidak bersebelahan di HP */}
+      <div className="flex-1 flex flex-col min-w-0 w-full">
+
+        {/* Mobile Topbar & Pills */}
+        <div className="md:hidden flex flex-col w-full z-40 relative">
+          <div className="bg-white border-b border-slate-200 p-4 flex justify-between items-center">
+             <div className="flex items-center gap-3 text-indigo-600">
+               {/* Tambahan shrink-0 agar logo tidak tergencet menghilang */}
+               <img src="https://i.imgur.com/XV3hpOH.png" alt="Logo" className="w-8 h-8 object-contain shrink-0" />
+               <div>
+                  <h1 className="font-bold text-[15px] leading-tight">Sistem Informasi Jemaat</h1>
+                  <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Klasis Mollo Barat</p>
+               </div>
              </div>
-           </div>
-           <button onClick={() => setCurrentUser(null)} className="text-rose-600 p-2"><LogOut size={20}/></button>
+             <button onClick={() => setCurrentUser(null)} className="text-rose-600 p-2 shrink-0"><LogOut size={20}/></button>
+          </div>
+          <div className="bg-white px-4 pt-4 pb-2 border-b border-slate-200 flex overflow-x-auto gap-2 hide-scrollbar">
+            {menuItems.map(item => (
+              <button key={item.id} onClick={() => setActiveTab(item.id)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium border ${activeTab === item.id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}`}>{item.label}</button>
+            ))}
+          </div>
         </div>
-        <div className="bg-white px-4 pt-4 pb-2 border-b border-slate-200 flex overflow-x-auto gap-2 hide-scrollbar">
-          {menuItems.map(item => (
-            <button key={item.id} onClick={() => setActiveTab(item.id)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium border ${activeTab === item.id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}`}>{item.label}</button>
-          ))}
-        </div>
+
+        {/* Main Content */}
+        <main className="flex-1 p-4 md:p-8 w-full max-w-[1200px] mx-auto overflow-x-hidden">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {activeTab === 'dashboard' && <DashboardView />}
+            {activeTab === 'data_jemaat' && <DataJemaatView />}
+            {activeTab === 'profil_jemaat' && <ProfilJemaatView />}
+            {activeTab === 'profil_pendeta' && <ProfilPendetaView />}
+            {activeTab === 'laporan' && <LaporanPembaharuanView />}
+            {activeTab === 'admin_settings' && currentUser.role === 'Admin' && <AdminSettingsView />}
+          </div>
+        </main>
+
       </div>
-
-      {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 w-full max-w-[1200px] mx-auto">
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {activeTab === 'dashboard' && <DashboardView />}
-          {activeTab === 'data_jemaat' && <DataJemaatView />}
-          {activeTab === 'profil_jemaat' && <ProfilJemaatView />}
-          {activeTab === 'profil_pendeta' && <ProfilPendetaView />}
-          {activeTab === 'laporan' && <LaporanPembaharuanView />}
-          {activeTab === 'admin_settings' && currentUser.role === 'Admin' && <AdminSettingsView />}
-        </div>
-      </main>
-
     </div>
   );
 }
