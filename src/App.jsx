@@ -6,26 +6,29 @@ import {
 } from 'lucide-react';
 
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { 
   getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc
 } from 'firebase/firestore';
 
 // --- FIREBASE INITIALIZATION ---
-// Konfigurasi ini disesuaikan agar bisa berjalan dengan baik di lingkungan pratinjau (Canvas).
-// Jika Anda menyalinnya ke VS Code untuk Vercel, pastikan untuk menggunakan konfigurasi Vite Anda.
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+// Konfigurasi khusus untuk Laptop (VS Code) dan Vercel agar membaca file .env
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
+};
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Pengaturan Jalur Database
-const isCanvas = typeof __app_id !== 'undefined';
-const appId = isCanvas ? __app_id : 'default-app-id';
-
-const getCollectionPath = (colName) => isCanvas ? `artifacts/${appId}/public/data/${colName}` : colName;
-const getDocRef = (colName, docId) => isCanvas ? doc(db, 'artifacts', appId, 'public', 'data', colName, docId) : doc(db, colName, docId);
+// Pengaturan Jalur Database Produksi
+const getCollectionPath = (colName) => `${colName}`;
+const getDocRef = (colName, docId) => doc(db, colName, docId);
 
 // --- HELPER UNTUK FORM DATA JEMAAT ---
 const toCamelCase = (str) => {
@@ -75,16 +78,16 @@ const Button = ({ children, onClick, variant = 'primary', className = "", type =
 };
 
 const Input = ({ label, type = "text", value, onChange, placeholder, required = false, className="" }) => (
-  <div className={`flex flex-col gap-1.5 ${className}`}>
+  <div className={`flex flex-col gap-1.5 w-full ${className}`}>
     {label && <label className="text-sm font-semibold text-slate-600 ml-1">{label} {required && <span className="text-rose-500">*</span>}</label>}
-    <input type={type} value={value} onChange={onChange} required={required} placeholder={placeholder} className="px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-all" />
+    <input type={type} value={value} onChange={onChange} required={required} placeholder={placeholder} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-all min-w-0" />
   </div>
 );
 
 const Select = ({ label, value, onChange, options, required = false, className="" }) => (
-  <div className={`flex flex-col gap-1.5 ${className}`}>
+  <div className={`flex flex-col gap-1.5 w-full ${className}`}>
     {label && <label className="text-sm font-semibold text-slate-600 ml-1">{label} {required && <span className="text-rose-500">*</span>}</label>}
-    <select value={value} onChange={onChange} required={required} className="px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-all">
+    <select value={value} onChange={onChange} required={required} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-all min-w-0">
       <option value="">Pilih...</option>
       {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
     </select>
@@ -106,16 +109,16 @@ const ImageUpload = ({ label, onImageSelected, currentImage, required }) => {
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 w-full">
       {label && <label className="text-sm font-semibold text-slate-600 ml-1">{label} {required && <span className="text-rose-500">*</span>}</label>}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 w-full">
         <div className="h-24 w-24 rounded-2xl border-2 border-dashed border-slate-300 overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
           {preview ? <img src={preview} alt="Preview" className="h-full w-full object-cover" /> : <UserCircle className="text-slate-300 h-10 w-10" />}
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <input type="file" accept="image/jpeg, image/png" onChange={handleFileChange} className="hidden" id="image-upload-input" />
-          <label htmlFor="image-upload-input" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl cursor-pointer hover:bg-indigo-100 transition-colors font-medium text-sm">
-            <UploadCloud size={18} /> Pilih Foto
+          <label htmlFor="image-upload-input" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl cursor-pointer hover:bg-indigo-100 transition-colors font-medium text-sm w-fit max-w-full">
+            <UploadCloud size={18} className="shrink-0" /> <span className="truncate">Pilih Foto</span>
           </label>
           <p className="text-xs text-slate-500 mt-2">Format: JPG/PNG. Maks 1MB.</p>
           {error && <p className="text-xs text-rose-500 mt-1">{error}</p>}
@@ -245,7 +248,7 @@ const DataTable = ({ columns, data, onEdit, onDelete, onPrint, onDownloadExcel, 
             options={[{label: '10 Baris', value: 10}, {label: '20 Baris', value: 20}, {label: 'Semua', value: 'All'}]} className="w-32" />
         </div>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 w-full max-w-full">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 text-slate-600 text-sm border-b border-slate-200">
@@ -283,7 +286,7 @@ const DataTable = ({ columns, data, onEdit, onDelete, onPrint, onDownloadExcel, 
 
 // --- MAIN APPLICATION ---
 export default function App() {
-  const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+  const [fbUser, setFbUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [toast, setToast] = useState(null);
@@ -304,17 +307,17 @@ export default function App() {
         } else {
           await signInAnonymously(auth);
         }
-        setIsFirebaseReady(true);
       } catch (error) { 
         console.error("Auth error:", error); 
-        alert("Gagal terhubung ke database."); 
       }
     };
     initApp();
+    const unsubscribe = onAuthStateChanged(auth, setFbUser);
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (!isFirebaseReady) return;
+    if (!fbUser) return;
     const subscribeToCol = (colName, setter) => onSnapshot(collection(db, getCollectionPath(colName)), (snapshot) => setter(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))), (err) => console.error(err));
     const unsubscribers = [
       subscribeToCol('master_jemaat', setMasterJemaat),
@@ -324,7 +327,7 @@ export default function App() {
       subscribeToCol('profil_pendeta', setProfilPendeta)
     ];
     return () => unsubscribers.forEach(unsub => unsub());
-  }, [isFirebaseReady]);
+  }, [fbUser]);
 
   const handleSave = async (colName, data, id = null) => {
     try {
@@ -372,7 +375,7 @@ export default function App() {
       .map(item => ({label: item.name, value: item.id}));
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans w-full max-w-[100vw] overflow-x-hidden">
         <Card className="w-full max-w-md">
           <div className="text-center mb-6">
             <img src="https://i.imgur.com/XV3hpOH.png" alt="Logo" className="w-32 h-32 object-contain mx-auto mb-4" />
@@ -387,7 +390,7 @@ export default function App() {
              </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4 w-full">
             <Select label="Masuk Sebagai" value={role} onChange={(e) => { setRole(e.target.value); setUsername(''); setPassword(''); setLoginTeritori(''); setLoginError(''); }}
               options={[{label: 'Admin', value: 'Admin'}, {label: 'Jemaat', value: 'Jemaat'}, {label: 'Pendeta', value: 'Pendeta'}]} required />
             
@@ -409,7 +412,6 @@ export default function App() {
   };
 
   const DashboardView = () => {
-    // Memindahkan mesin waktu HANYA ke dalam Dashboard agar tidak merefresh Login
     const [now, setNow] = useState(new Date());
     
     useEffect(() => {
@@ -417,51 +419,47 @@ export default function App() {
       return () => clearInterval(timer);
     }, []);
 
-    // Group 1 Calculations
     const totalKK = dataJemaat.reduce((acc, curr) => acc + (Number(curr.jumlahKK) || 0), 0);
     const jiwaL = dataJemaat.reduce((acc, curr) => acc + (Number(curr.jiwaL) || 0), 0);
     const jiwaP = dataJemaat.reduce((acc, curr) => acc + (Number(curr.jiwaP) || 0), 0);
     const totalJiwa = jiwaL + jiwaP;
 
-    // Group 2 Calculations
     const totalJemaat = masterJemaat.filter(j => j.status === 'Jemaat').length;
     const totalMataJemaat = masterJemaat.filter(j => j.status === 'Jemaat Bermata Jemaat').length;
     const totalPosPelayanan = masterJemaat.filter(j => j.status === 'Pos Pelayanan').length;
     
-    // Group 3 Calculations
     const pendetaL = masterPendeta.filter(p => p.jenisKelamin === 'L').length;
     const pendetaP = masterPendeta.filter(p => p.jenisKelamin === 'P').length;
     const totalPendeta = masterPendeta.length;
 
     const StatCard = ({ title, value, colorClass }) => (
       <Card className="flex items-center gap-4 p-5">
-        <div className={`w-2 h-12 rounded-full ${colorClass}`}></div>
-        <div>
-          <p className="text-sm font-semibold text-slate-500 mb-0.5">{title}</p>
+        <div className={`w-2 h-12 rounded-full shrink-0 ${colorClass}`}></div>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-500 mb-0.5 truncate">{title}</p>
           <p className="text-3xl font-bold text-slate-800">{value}</p>
         </div>
       </Card>
     );
 
     return (
-      <div className="space-y-8">
+      <div className="space-y-8 w-full">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div>
-             <h2 className="text-3xl font-bold text-indigo-900">Shalom, {currentUser.name}!</h2>
-             <p className="text-slate-500 text-lg mt-1">Selamat datang di Infografis & Ringkasan Realtime</p>
+          <div className="min-w-0">
+             <h2 className="text-3xl font-bold text-indigo-900 truncate">Shalom, {currentUser.name}!</h2>
+             <p className="text-slate-500 text-lg mt-1 truncate">Selamat datang di Infografis Realtime</p>
           </div>
-          <div className="bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3 w-fit">
-             <Clock className="text-indigo-500" size={24} />
-             <div>
-               <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-               <p className="text-xl font-bold text-slate-800 leading-none mt-1">{now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</p>
+          <div className="bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3 w-full sm:w-fit shrink-0">
+             <Clock className="text-indigo-500 shrink-0" size={24} />
+             <div className="min-w-0">
+               <p className="text-xs text-slate-500 font-bold uppercase tracking-wider truncate">{now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+               <p className="text-xl font-bold text-slate-800 leading-none mt-1 truncate">{now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</p>
              </div>
           </div>
         </div>
         
-        {/* Grup 1: Populasi */}
         <div>
-          <h3 className="font-bold text-lg text-slate-700 mb-4 flex items-center gap-2"><Users size={20} className="text-indigo-600"/> Populasi Jemaat</h3>
+          <h3 className="font-bold text-lg text-slate-700 mb-4 flex items-center gap-2"><Users size={20} className="text-indigo-600 shrink-0"/> Populasi Jemaat</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard title="Jumlah KK" value={totalKK} colorClass="bg-emerald-500" />
             <StatCard title="Jiwa Laki-laki" value={jiwaL} colorClass="bg-blue-500" />
@@ -470,9 +468,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Grup 2: Status */}
         <div>
-          <h3 className="font-bold text-lg text-slate-700 mb-4 flex items-center gap-2 mt-2"><MapPin size={20} className="text-indigo-600"/> Status Jemaat</h3>
+          <h3 className="font-bold text-lg text-slate-700 mb-4 flex items-center gap-2 mt-2"><MapPin size={20} className="text-indigo-600 shrink-0"/> Status Jemaat</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCard title="Jemaat (Mandiri)" value={totalJemaat} colorClass="bg-indigo-500" />
             <StatCard title="Jemaat Bermata Jemaat" value={totalMataJemaat} colorClass="bg-purple-500" />
@@ -480,9 +477,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Grup 3: Pelayan */}
         <div>
-          <h3 className="font-bold text-lg text-slate-700 mb-4 flex items-center gap-2 mt-2"><UserCircle size={20} className="text-indigo-600"/> Pelayan (Pendeta)</h3>
+          <h3 className="font-bold text-lg text-slate-700 mb-4 flex items-center gap-2 mt-2"><UserCircle size={20} className="text-indigo-600 shrink-0"/> Pelayan (Pendeta)</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCard title="Pendeta Laki-laki" value={pendetaL} colorClass="bg-blue-600" />
             <StatCard title="Pendeta Perempuan" value={pendetaP} colorClass="bg-pink-600" />
@@ -493,7 +489,6 @@ export default function App() {
     );
   };
 
-  // --- EXCEL-LIKE SPREADSHEET EDITOR ---
   const AdminSettingsView = () => {
     const [tab, setTab] = useState('jemaat');
     const [localJemaat, setLocalJemaat] = useState([]);
@@ -501,7 +496,6 @@ export default function App() {
     const [hasChanges, setHasChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Initialize local grids
     useEffect(() => {
       if(!hasChanges) {
         setLocalJemaat([...masterJemaat, ...Array(5).fill().map(() => ({id: `new-${crypto.randomUUID()}`, isNew: true, name:'', teritori:'', status:'', password:''}))]);
@@ -520,7 +514,7 @@ export default function App() {
 
     const handlePaste = (e, type, startRowIndex) => {
       const text = e.clipboardData.getData('text');
-      if(!text.includes('\t') && !text.includes('\n')) return; // let native paste handle single cell
+      if(!text.includes('\t') && !text.includes('\n')) return; 
       e.preventDefault();
       setHasChanges(true);
 
@@ -581,18 +575,18 @@ export default function App() {
     };
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 w-full">
         <datalist id="teritori-list"><option value="Selatan"/><option value="Tengah"/><option value="Barat"/></datalist>
         <datalist id="status-list"><option value="Jemaat"/><option value="Jemaat Bermata Jemaat"/><option value="Pos Pelayanan"/></datalist>
         <datalist id="gender-list"><option value="L"/><option value="P"/></datalist>
 
-        <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Tabel Master Data</h2>
             <p className="text-sm text-slate-500">Tersambung Real-time ke Database. Klik sel pertama, lalu <strong>Paste dari Excel</strong></p>
           </div>
-          <Button onClick={handleSaveAll} variant="success" disabled={!hasChanges || isSaving} className="px-6">
-            <Save size={18} /> {isSaving ? 'Menyimpan...' : 'Simpan Semua Perubahan'}
+          <Button onClick={handleSaveAll} variant="success" disabled={!hasChanges || isSaving} className="px-6 w-full sm:w-auto">
+            <Save size={18} /> {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
           </Button>
         </div>
 
@@ -602,22 +596,22 @@ export default function App() {
         </div>
 
         <Card className="p-0 overflow-hidden rounded-t-none border-t-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto w-full max-w-full">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-100 text-slate-700 text-sm border-b-2 border-slate-200">
                   {tab === 'jemaat' ? (
                     <>
-                      <th className="px-4 py-3 font-bold border-r border-slate-200 w-1/3">Nama Jemaat</th>
-                      <th className="px-4 py-3 font-bold border-r border-slate-200">Teritori</th>
-                      <th className="px-4 py-3 font-bold border-r border-slate-200">Status</th>
-                      <th className="px-4 py-3 font-bold border-r border-slate-200">Password</th>
+                      <th className="px-4 py-3 font-bold border-r border-slate-200 w-1/3 min-w-[200px]">Nama Jemaat</th>
+                      <th className="px-4 py-3 font-bold border-r border-slate-200 min-w-[150px]">Teritori</th>
+                      <th className="px-4 py-3 font-bold border-r border-slate-200 min-w-[150px]">Status</th>
+                      <th className="px-4 py-3 font-bold border-r border-slate-200 min-w-[150px]">Password</th>
                     </>
                   ) : (
                     <>
-                      <th className="px-4 py-3 font-bold border-r border-slate-200 w-1/2">Nama Pendeta</th>
-                      <th className="px-4 py-3 font-bold border-r border-slate-200">Gender (L/P)</th>
-                      <th className="px-4 py-3 font-bold border-r border-slate-200">Password</th>
+                      <th className="px-4 py-3 font-bold border-r border-slate-200 w-1/2 min-w-[200px]">Nama Pendeta</th>
+                      <th className="px-4 py-3 font-bold border-r border-slate-200 min-w-[150px]">Gender (L/P)</th>
+                      <th className="px-4 py-3 font-bold border-r border-slate-200 min-w-[150px]">Password</th>
                     </>
                   )}
                   <th className="px-4 py-3 font-bold text-center w-16">Aksi</th>
@@ -683,7 +677,6 @@ export default function App() {
     const isAdmin = currentUser.role === 'Admin';
     const isJemaat = currentUser.role === 'Jemaat';
 
-    // Memetakan data dari database dengan nama & teritori jemaat
     const mappedData = useMemo(() => {
        return dataJemaat.map(d => {
           const jemaat = masterJemaat.find(j => j.id === d.jemaatId) || {};
@@ -699,7 +692,6 @@ export default function App() {
        });
     }, [mappedData, isJemaat, filterTeritori, currentUser]);
 
-    // Kolom-kolom lengkap untuk mode cetak tabel/download Excel
     const printCols = useMemo(() => {
        const cols = [
          { key: 'jemaatName', label: 'Nama Jemaat' },
@@ -769,7 +761,6 @@ export default function App() {
       setImportText('');
     };
 
-    // Fungsi Cetak Form per Jemaat (Aksi Row)
     const handlePrintFormDetail = (row) => {
       const printWindow = window.open('', '', 'width=800,height=800');
       let formHtml = `<h3 style="text-align:center; border-bottom: 2px solid #333; padding-bottom: 10px;">Formulir Data Jemaat: <br/><span style="color:#4f46e5">${row.jemaatName}</span></h3>`;
@@ -790,20 +781,16 @@ export default function App() {
       printWindow.setTimeout(() => { printWindow.print(); }, 500);
     };
 
-    // Fungsi Download Keseluruhan menjadi File CSV (Excel)
     const handleDownloadExcel = () => {
-      let csvContent = '\uFEFF'; // BOM for UTF-8 Excel compatibility
+      let csvContent = '\uFEFF'; 
       
-      // Headers
       const headers = printCols.map(c => `"${c.label}"`).join(',');
       csvContent += headers + '\n';
       
-      // Rows
       visibleData.forEach(row => {
          const rowData = printCols.map(col => {
             let val = col.render ? col.render(row[col.key], row) : row[col.key];
             if (val === undefined || val === null) val = '';
-            // Escape double quotes inside string
             return `"${String(val).replace(/"/g, '""')}"`;
          });
          csvContent += rowData.join(',') + '\n';
@@ -848,13 +835,13 @@ export default function App() {
         {formData ? (
           <Card>
             <h3 className="text-xl font-bold mb-6 pb-2 border-b border-slate-100">{formData.id ? 'Edit' : 'Input'} Data Lengkap Jemaat</h3>
-            <form onSubmit={submitForm} className="space-y-8">
+            <form onSubmit={submitForm} className="space-y-8 w-full max-w-full">
               {isAdmin && <div className="max-w-md"><Select label="Pilih Jemaat" value={formData.jemaatId} onChange={e => setFormData({...formData, jemaatId: e.target.value})} options={masterJemaat.map(j => ({label: j.name, value: j.id}))} required /></div>}
               
               {Object.entries(formDataJemaatGroups).map(([groupName, fields]) => (
-                <div key={groupName} className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                <div key={groupName} className="bg-slate-50 p-4 md:p-5 rounded-2xl border border-slate-100 w-full overflow-hidden">
                   <h4 className="font-bold text-indigo-800 mb-4 flex items-center gap-2"><div className="w-1.5 h-4 bg-indigo-500 rounded-full"></div>{groupName}</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {fields.map(label => {
                       const key = toCamelCase(label);
                       return (
@@ -866,8 +853,8 @@ export default function App() {
               ))}
 
               <div className="flex gap-4 pt-4 border-t border-slate-100">
-                <Button type="submit" variant="success" className="px-8 text-lg">Simpan Data Jemaat</Button>
-                <Button onClick={() => setFormData(null)} variant="secondary">Batal</Button>
+                <Button type="submit" variant="success" className="px-8 text-lg w-full sm:w-auto">Simpan Data</Button>
+                <Button onClick={() => setFormData(null)} variant="secondary" className="w-full sm:w-auto">Batal</Button>
               </div>
             </form>
           </Card>
@@ -889,7 +876,6 @@ export default function App() {
           </Card>
         )}
 
-        {/* Modal Import CSV/Excel Khusus Data Jemaat */}
         {showImportModal && (
           <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-3xl animate-in zoom-in-95 duration-200">
@@ -921,7 +907,6 @@ export default function App() {
     const [filterTeritori, setFilterTeritori] = useState('');
     const isAdmin = currentUser.role === 'Admin';
     
-    // Urutkan profil agar profil jemaat yang sedang login berada di paling atas dan filter Teritori
     const visibleData = useMemo(() => {
       let data = profilJemaat.map(p => {
           const jemaat = masterJemaat.find(j => j.id === p.jemaatId) || {};
@@ -999,13 +984,13 @@ export default function App() {
 
         {formData ? (
           <Card>
-            <form onSubmit={submitForm} className="space-y-4 max-w-2xl">
+            <form onSubmit={submitForm} className="space-y-4 max-w-2xl w-full">
               {isAdmin && <Select label="Pilih Jemaat" value={formData.jemaatId} onChange={e => setFormData({...formData, jemaatId: e.target.value})} options={masterJemaat.map(j => ({label: j.name, value: j.id}))} required />}
               <Input label="Waktu Kebaktian" placeholder="Contoh: Minggu, Pkl 08.00 & 16.00" value={formData.waktuKebaktian} onChange={e => setFormData({...formData, waktuKebaktian: e.target.value})} required />
               <Input label="Link Kotak Map (Sematkan Google Maps)" placeholder='Paste url / kode iframe "src" dari Google Maps' value={formData.linkMap} onChange={e => setFormData({...formData, linkMap: extractIframeSrc(e.target.value)})} />
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1.5 w-full">
                 <label className="text-sm font-semibold text-slate-600 ml-1">Sejarah Singkat Jemaat</label>
-                <textarea rows={5} className="px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none" value={formData.sejarah} onChange={e => setFormData({...formData, sejarah: e.target.value})} required></textarea>
+                <textarea rows={5} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none" value={formData.sejarah} onChange={e => setFormData({...formData, sejarah: e.target.value})} required></textarea>
               </div>
               <ImageUpload label="Foto Gedung Gereja / Jemaat" currentImage={formData.fotoBase64} onImageSelected={(base64) => setFormData({...formData, fotoBase64: base64})} />
               <div className="flex gap-2 pt-4"><Button type="submit" variant="success">Simpan Profil</Button><Button onClick={() => setFormData(null)} variant="secondary">Batal</Button></div>
@@ -1022,7 +1007,6 @@ export default function App() {
     const [formData, setFormData] = useState(null);
     const isAdmin = currentUser.role === 'Admin';
     
-    // Urutkan profil agar profil pendeta yang sedang login berada di paling atas
     const visibleData = useMemo(() => {
       let data = [...profilPendeta];
       if (currentUser.role === 'Pendeta') {
@@ -1080,7 +1064,7 @@ export default function App() {
 
         {formData ? (
           <Card>
-            <form onSubmit={submitForm} className="space-y-4 max-w-2xl">
+            <form onSubmit={submitForm} className="space-y-4 max-w-2xl w-full">
               {isAdmin && <Select label="Pilih Pendeta" value={formData.pendetaId} onChange={e => setFormData({...formData, pendetaId: e.target.value})} options={masterPendeta.map(p => ({label: p.name, value: p.id}))} required />}
               <Input label="Jabatan Pelayanan" placeholder="Contoh: Ketua Majelis Jemaat" value={formData.jabatan} onChange={e => setFormData({...formData, jabatan: e.target.value})} required />
               <Input type="date" label="Tanggal mulai pelayanan di Klasis Mollo Barat" value={formData.tanggalMulai} onChange={e => setFormData({...formData, tanggalMulai: e.target.value})} required />
@@ -1202,7 +1186,7 @@ export default function App() {
   };
 
   // --- MAIN RENDER ---
-  if (!isFirebaseReady) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-pulse text-indigo-600 font-bold text-xl">Memuat Sistem...</div></div>;
+  if (!fbUser) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-pulse text-indigo-600 font-bold text-xl">Memuat Sistem...</div></div>;
   if (!currentUser) return <LoginView />;
 
   const menuItems = [
@@ -1218,7 +1202,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800">
+    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 w-full max-w-[100vw] overflow-x-hidden">
       
       {toast && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 text-white transition-all transform translate-y-0 ${toast.type === 'error' ? 'bg-rose-500' : 'bg-emerald-500'}`}>
@@ -1228,7 +1212,7 @@ export default function App() {
       )}
 
       {/* Sidebar Desktop */}
-      <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col sticky top-0 h-screen">
+      <aside className="w-64 shrink-0 bg-white border-r border-slate-200 hidden md:flex flex-col sticky top-0 h-screen">
         <div className="p-6 border-b border-slate-100">
           <div className="flex items-center gap-3 text-indigo-600">
             <img src="https://i.imgur.com/XV3hpOH.png" alt="Logo" className="w-10 h-10 object-contain" />
@@ -1256,17 +1240,16 @@ export default function App() {
       </aside>
 
       {/* Wrapper untuk konten utama agar tidak bersebelahan di HP */}
-      <div className="flex-1 flex flex-col min-w-0 w-full">
+      <div className="flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-hidden">
 
         {/* Mobile Topbar & Pills */}
-        <div className="md:hidden flex flex-col w-full z-40 relative">
+        <div className="md:hidden flex flex-col w-full z-40 relative shrink-0">
           <div className="bg-white border-b border-slate-200 p-4 flex justify-between items-center">
              <div className="flex items-center gap-3 text-indigo-600">
-               {/* Tambahan shrink-0 agar logo tidak tergencet menghilang */}
                <img src="https://i.imgur.com/XV3hpOH.png" alt="Logo" className="w-8 h-8 object-contain shrink-0" />
-               <div>
-                  <h1 className="font-bold text-[15px] leading-tight">Sistem Informasi Jemaat</h1>
-                  <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Klasis Mollo Barat</p>
+               <div className="min-w-0">
+                  <h1 className="font-bold text-[15px] leading-tight truncate">Sistem Informasi Jemaat</h1>
+                  <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider truncate">Klasis Mollo Barat</p>
                </div>
              </div>
              <button onClick={() => setCurrentUser(null)} className="text-rose-600 p-2 shrink-0"><LogOut size={20}/></button>
@@ -1280,7 +1263,7 @@ export default function App() {
 
         {/* Main Content */}
         <main className="flex-1 p-4 md:p-8 w-full max-w-[1200px] mx-auto overflow-x-hidden">
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
             {activeTab === 'dashboard' && <DashboardView />}
             {activeTab === 'data_jemaat' && <DataJemaatView />}
             {activeTab === 'profil_jemaat' && <ProfilJemaatView />}
