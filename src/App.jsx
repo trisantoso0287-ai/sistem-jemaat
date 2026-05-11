@@ -11,26 +11,23 @@ import {
   getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc
 } from 'firebase/firestore';
 
-// Konfigurasi Firebase (Mendukung Vercel env maupun environment lokal Immersive)
-const firebaseConfig = typeof __firebase_config !== 'undefined' 
-  ? JSON.parse(__firebase_config) 
-  : {
-      apiKey: "AIzaSyDFsVHv4CvEh20sLlKrQZjkUngqoXRhRXg",
-      authDomain: "db-klasis-mollo-barat.firebaseapp.com",
-      projectId: "db-klasis-mollo-barat",
-      storageBucket: "db-klasis-mollo-barat.firebasestorage.app",
-      messagingSenderId: "302184509523",
-      appId: "1:302184509523:web:37cc91ee1ec8125d3316a6"
-    };
+// --- FIREBASE INITIALIZATION ---
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
+};
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Pengaturan Jalur Database Produksi
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'klasis-mollo-barat';
-const getCollectionPath = (colName) => `artifacts/${appId}/public/data/${colName}`;
-const getDocRef = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
+// Pengaturan Jalur Database Produksi Asli
+const getCollectionPath = (colName) => `${colName}`;
+const getDocRef = (colName, docId) => doc(db, colName, docId);
 
 // Gambar Pengganti jika Foto Rusak/Kosong
 const fallbackImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14px' font-weight='bold' fill='%2394a3b8'%3EGambar Tidak Tersedia%3C/text%3E%3C/svg%3E";
